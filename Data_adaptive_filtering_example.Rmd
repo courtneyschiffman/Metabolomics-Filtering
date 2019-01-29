@@ -156,8 +156,8 @@ peakTable2 <- peakTable[rownames(peakTable)%in%batch1.features,]
 filled2 <- filled[rownames(filled)%in%batch1.features,]
 
 
-percent.zero1 <- apply(peakTable[,12:171],1,function(x) mean(is.na(x)))
-names(percent.zero1) <- rownames(peakTable)
+percent.zero1 <- apply(peakTable2[,12:171],1,function(x) mean(is.na(x)))
+names(percent.zero1) <- rownames(peakTable2)
 
 bp <- boxplot(percent.zero1[names(percent.zero1)%in%c(fail)]*100)
 
@@ -181,8 +181,6 @@ for (i in 1:nrow(peakTable2)){
     fish.pvals[i] <- fisher.test(as.numeric(is.na(peakTable2[i,obsNames1])),cov$Case)$p.value
   }
 }
-
-percent.zero1 <- apply(peakTable2[,obsNames1],1,function(x) mean(is.na(x)))
 
 
 keep.features2 <- fish.pvals <= quantile(fish.pvals,.01) | (percent.zero1 <= bp$stats[3,]/100 )
