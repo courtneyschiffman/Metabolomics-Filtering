@@ -213,14 +213,12 @@ qc.matrix[qc.matrix==0] <- NA
 
 percent.zero.filled <- apply(filled3[,obsNames1],1,function(x) mean(is.na(x)))
 names(percent.zero.filled) <- rownames(filled2)
-plot(density(percent.zero.filled))
-
 
 filled3 <- filled3[percent.zero.filled <= .05,]
 qc.matrix <- qc.matrix[percent.zero.filled <= .05,]
 
 
-vars1 <- foreach(i=(1:nrow(filled3)),.packages='nlme',.combine='rbind')%dopar%{
+vars1 <- foreach(i=(1:nrow(filled3))[-c(1800,4134)],.packages='nlme',.combine='rbind')%dopar%{
   reps <- factor(c(1:length(obsNames1),rep(length(obsNames1)+1,length(qcNames1))))
   data <- data.frame(y=c(as.numeric(filled3[i,]),as.numeric(qc.matrix[i,])),reps=reps)
   mm <- lme(y~ 1, random = ~1|reps, data=data,na.action = na.omit)
@@ -229,34 +227,55 @@ vars1 <- foreach(i=(1:nrow(filled3)),.packages='nlme',.combine='rbind')%dopar%{
 
 
 ICC1 <- apply(vars1,1,function(x) x[1]/sum(x))
-names(ICC1) <- rownames(filled3)
+plot(density(ICC1),main="Density plot of Estimated ICC's, Batch 1",xlab="ICC",cex.lab=1.5,cex.main=1.5)
+abline(v=.2,lwd=1.5,col="red")
+names(ICC1) <- rownames(filled3)[-c(1800,4134)]
+
+myCV <- foreach(i=(1:nrow(filled3))[-c(1800,4134)],.packages=c('nlme','sjstats'),.combine='rbind')%dopar%{
+  reps <- factor(c(1:length(obsNames1),rep(length(obsNames1)+1,length(qcNames1))))
+  data <- data.frame(y=c(as.numeric(filled3[i,]),as.numeric(qc.matrix[i,])),reps=reps)
+  mm <- lme(y~ 1, random = ~1|reps, data=data,na.action = na.omit)
+  return(cv(mm))
+}
+
+CV1 <- myCV*100
+names(CV1) <- rownames(filled3)[-c(1800,4134)]
+
+
+
 
 bp <- boxplot(ICC1[names(ICC1)%in%c(pass)])
 
 bp$stats
 
-
 boxplot(ICC1[names(ICC1)%in%c(pass,fail)] ~ as.factor(names(ICC1[names(ICC1)%in%c(pass,fail)])%in%pass),notch=T
         ,names=c('Poor Quality','Good Quality'),main='Box Plot of Intra-class Correlation Coefficient',
         cex.lab=1.4,cex.main=1.5,ylab='ICC',cex.axis=1.4,varwidth=T)
 
+
 abline(h=bp$stats[1,],lty=6,col="red",lwd=2)
 
 
-CV1 <- foreach(i=(1:nrow(filled3))[-c(1800,4134)],.packages=c('nlme','sjstats'),.combine='rbind')%dopar%{
-  reps <- factor(c(1:length(obsNames1),rep(length(obsNames1)+1,length(qcNames1))))
-  data <- data.frame(y=c(as.numeric(filled3[i,]),as.numeric(qc.matrix[i,])),reps=reps)
-  mm <- lme(y~ 1, random = ~1|reps, data=data,na.action = na.omit)
-  return(cv(mm)*100)
-}
 
-names(CV1) <- rownames(filled3)[-c(1800,4134)]
+boxplot(CV1[names(CV1)%in%c(pass,fail)] ~ as.factor(names(CV1[names(CV1)%in%c(pass,fail)])%in%pass),notch=T
+        ,names=c('Poor Quality','Good Quality'),main='Box Plot of Coefficient of Variation',
+        cex.lab=1.4,cex.main=1.5,ylab='CV',cex.axis=1.4,varwidth=T,ylim=c(0,35))
+
+abline(h=30,lty=6,lwd=2)
+
+legend("topright",legend=c("Typical CV cutoff"),lwd=2,col="black",lty=6,cex=1.5)
+
+sum(CV1[names(CV1)%in%c(fail)] < 30)
 
 filled4 <- filled3[-c(1800,4134),]
 
 keep.features5 <- ICC1 >= bp$stats[1,] 
 
 filled4 <- filled4[keep.features5,]
+
+sum(fail%in%rownames(filled4))
+sum(pass%in%rownames(filled4))
+
 
 
 ```
