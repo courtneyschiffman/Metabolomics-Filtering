@@ -9,8 +9,8 @@ knitr::opts_chunk$set(echo = TRUE,message=F,warning=F,tidy = T,tidy.opts = list(
 
 ```{r libraries}
 
-libs <- c('xcms','RColorBrewer','tidyverse')
-for (l in libraries){
+libs <- c('xcms','RColorBrewer','tidyverse','doParallel','foreach')
+for (l in libs){
   suppressPackageStartupMessages(library(l,character.only=T))
 }
 
