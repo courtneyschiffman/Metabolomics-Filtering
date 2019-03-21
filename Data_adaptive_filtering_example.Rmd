@@ -9,7 +9,7 @@ knitr::opts_chunk$set(echo = TRUE,message=F,warning=F,tidy = T,tidy.opts = list(
 
 ```{r libraries}
 
-libs <- c('xcms','RColorBrewer','tidyverse','doParallel','foreach')
+libs <- c('xcms','RColorBrewer','tidyverse','doParallel','foreach','parallel')
 for (l in libs){
   suppressPackageStartupMessages(library(l,character.only=T))
 }
@@ -21,21 +21,90 @@ for (l in libs){
 
 ```{r MD Filtering}
 
-# log abundances from xcms pre-processing, without having used 'fillChromPeaks'
-load('peakTable.RData')
+source("MDplot.R")
 
-# log abundances from xcms pre-processing after using 'fillChromPeaks'
-load('filled_data.RData')
+load('Data.RData')
 
-# CRC case status
-load('cov.RData')
+MDplot(filled,blankNames,obsNames,high,low)
 
-# list of good quality peaks, named 'pass'
-load('good_quality_features.RData')
 
-# list of poor quality peaks, names 'fail'
-load('poor_quality_features.RData')
+# Calculate the number of blank samples (0-3) each feature has a zero value in. Most features are detected in all 3 blank samples (num.zero=0)
+num.zero <- apply(filled[,blankNames],1, function(x) sum(x==0))
+names(num.zero) <- rownames(filled)
 
+filled <- filled[num.zero==0,]
+unfilled <- unfilled[num.zero==0,]
+
+obsMean <- as.vector(apply(filled[,obsNames], 1, mean))
+names(obsMean) <- rownames(filled)
+blankMean <- apply(filled[,blankNames], 1, mean)
+names(blankMean) <- rownames(filled)
+
+# quantiles to partition the features along the x-axis
+quantiles <- c(0.2,0.4,.6,.8,1)
+breaks <- quantile((blankMean+obsMean)/2,quantiles)
+
+# difference in average log abundances between biological and blank samples
+diff <- (obsMean)-(blankMean)
+# average log abundances in biological and blank samples
+mean <- (blankMean+obsMean)/2
+
+# find features in each partition above the absolute value of the lower quartile of differences below the zero-difference line in each partition
+
+less1 <- diff[diff <0 & mean <= breaks[1]]
+bin1 <- rownames(filled)[diff>0 & mean <= breaks[1] & diff> abs(summary(less1)[2])]
+
+less2 <- diff[diff <0 & mean <=breaks[2] & mean > breaks[1]]
+bin2 <- rownames(filled)[diff>0 & mean <= breaks[2] & mean> breaks[1] & diff> abs(summary(less2))[2]]
+
+less3 <- diff[diff <0 & mean <= breaks[3] & mean >breaks[2]]
+bin3 <- rownames(filled)[diff>0 & mean <= breaks[3] & mean>breaks[2] & diff> abs(summary(less3)[2])]
+
+less4 <- diff[ diff <0 & mean <=breaks[4] & mean >breaks[3]]
+bin4 <- rownames(filled)[diff>0 & mean <=breaks[4] & mean> breaks[3] & diff> abs(summary(less4)[2])]
+
+less5 <- diff[diff <0 & mean > breaks[4] ]
+bin5 <- rownames(filled)[diff>0 & mean > breaks[4] & diff> abs(summary(less5)[2])]
+
+
+# plot the paritions and filtering cutoffs for this cluster
+
+smoothScatter((blankMean+obsMean)/2,(obsMean)-(blankMean),
+                xlab="Mean",ylab="Difference",main="Mean-Difference Plot",
+                cex.lab=1.4,cex.main=1.5)
+abline(h=0,lwd=1,col="blue")
+legend('bottomright',legend=c('Good Quality','Poor Quality'),col=c('red','black'),lwd=2,cex=1.2)
+
+blanks.low <- blankMean[names(blankMean)%in%low]
+obs.low <- (obsMean)[names(obsMean)%in%low]
+points((blanks.low+obs.low)/2,obs.low-blanks.low,pch=19,cex=.6)
+blanks.high <- blankMean[names(blankMean)%in%high]
+obs.high <- obsMean[names(obsMean)%in%high]
+points((blanks.high+obs.high)/2,obs.high-blanks.high,col='red',pch=19,cex=.7)
+
+abline(v=breaks[1],lwd=1)
+abline(v=breaks[2],lwd=1)
+abline(v=breaks[3],lwd=1)
+abline(v=breaks[4],lwd=1)
+segments(x0=-1,y0=summary(less1)[2],x1=breaks[1],col="darkmagenta",lwd=2)
+segments(x0=-1,y0=abs(summary(less1)[2]),x1=breaks[1],col="green3",lwd=2)
+segments(x0=breaks[1],y0=summary(less2)[2],x1=breaks[2],col="darkmagenta",lwd=2)
+segments(x0=breaks[1],y0=abs(summary(less2)[2]),x1=breaks[2],col="green3",lwd=2)
+segments(x0=breaks[2],y0=summary(less3)[2],x1=breaks[3],col="darkmagenta",lwd=2)
+segments(x0=breaks[2],y0=abs(summary(less3)[2]),x1=breaks[3],col="green3",lwd=2)
+segments(x0=breaks[3],y0=summary(less4)[2],x1=breaks[4],col="darkmagenta",lwd=2)
+segments(x0=breaks[3],y0=abs(summary(less4)[2]),x1=breaks[4],col="green3",lwd=2)
+segments(x0=breaks[4],y0=summary(less5)[2],x1=20,col="darkmagenta",lwd=2)
+segments(x0=breaks[4],y0=abs(summary(less5)[2]),x1=20,col="green3",lwd=2)
+
+
+# features that are retained
+
+batch1.features <- c(bin1,bin2,bin3,bin4,bin5)
+
+
+filled <- filled[rownames(filled)%in%batch1.features,]
+unfilled <- unfilled[rownames(unfilled)%in%batch1.features,]
 
 
 ```
@@ -44,19 +113,20 @@ load('poor_quality_features.RData')
 
 ```{r percent missing filtering}
 
-## calculate p-value for fisher exact test to evaluate dependence between case-control status and missing/non-missing for each feature
-percent.zero <- apply(peakTable2[,obsNames1],1,function(x) mean(is.na(x)))
+source("Percent_missing.R")
 
-fish.pvals<- c()
+boxplot.na(unfilled,c(obsNames,obsNames2),high,low)
 
-for (i in 1:nrow(peakTable2)){
-  if(percent.zero[i]==0 | percent.zero[i]==1){
-    fish.pvals[i] <- 1
-  } else{
-    fish.pvals[i] <- fisher.test(as.numeric(is.na(peakTable2[i,obsNames1])),cov$Case)$p.value
-  }
-}
+fish.pvals <- diff.miss.fish(unfilled,obsNames,bio)
 
+na.threshold <- 0.67
+
+pval.thresh <- 0.01
+
+keep.features <- unique(c(filter.na(na.threshold,unfilled,c(obsNames,obsNames2)),filter.fish(pval.thresh,fish.pvals)))
+
+filled <- filled[rownames(filled)%in%keep.features,]
+unfilled <- unfilled[rownames(unfilled)%in%keep.features,]
 
 
 ```
@@ -64,5 +134,18 @@ for (i in 1:nrow(peakTable2)){
 ### ICC filtering
 
 ```{r ICC filtering}
+
+source("ICC.R")
+registerDoParallel(cores=detectCores())
+
+ICC <- calc.icc(filled,obsNames,qcNames)
+
+boxplot.icc(ICC,high,low)
+
+threshold <- 0.72
+filled <- filled[rownames(filled)%in%filter.icc(ICC,threshold),]
+unfilled <- unfilled[rownames(unfilled)%in%filter.icc(ICC,threshold),]
+
+
 
 ```

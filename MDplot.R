@@ -28,4 +28,3 @@ MDplot <- function(filled,blanks,biosamples,high,low){
   
 }
 
-MDplot(filled,filterNames1,obsNames1,pass,fail)

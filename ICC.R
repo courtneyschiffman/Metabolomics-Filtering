@@ -7,7 +7,7 @@
 calc.icc <- function(filled,biosamples,qcsamples){
   vars1 <- foreach(i=(1:nrow(filled)),.packages='nlme',.combine='rbind')%dopar%{
     reps <- factor(c(1:length(biosamples),rep(length(biosamples)+1,length(qcsamples))))
-    data <- data.frame(y=c(as.numeric(filled[i,]),as.numeric(filled[i,qcsamples])),reps=reps)
+    data <- data.frame(y=c(as.numeric(filled[i,biosamples]),as.numeric(filled[i,qcsamples])),reps=reps)
     mm <- lme(y~ 1, random = ~1|reps, data=data,na.action = na.omit)
     return(as.numeric(VarCorr(mm)[1:2]))
   }
@@ -15,6 +15,7 @@ calc.icc <- function(filled,biosamples,qcsamples){
   names(ICC) <- rownames(filled)
   return(ICC)
 }
+
 
 ## 'boxplot.icc' is a function that creates boxplots and boxplot statistics for high and low quality features that can be used to determine filtering thresholds
 
@@ -28,11 +29,8 @@ boxplot.icc <- function(icc,high,low){
   
 }
 
-boxplot.icc(ICC,pass,fail)
 
 filter.icc <- function(icc,threshold){
   names(icc[icc<threshold])
 }
 
-threshold <- 0.2
-peakTable <- peakTable[rownames(peakTable)%in%filter.icc(ICC,0.2),]

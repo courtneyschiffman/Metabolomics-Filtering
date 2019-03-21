@@ -16,7 +16,6 @@ boxplot.na <- function(unfilled,biosamples,high,low){
   return(list(LowQuality=bp.low$stats,HighQuality=bp.high$stats))
 }
 
-boxplot.na(peakTable,obsNames1,pass,fail)
 
 ## 'filter.na' is a function that returns features that pass a provided percent missing threshold
 ## threshold - fraction indicating the proportion of missing values threshold. Features with a proportion of missing values less than the threshold are retained
@@ -45,6 +44,7 @@ diff.miss.fish <- function(unfilled,biosamples,bio){
   return(fish.pvals)
 }
 
+
 ## 'filter.fish' is a function that returns features that pass the threshold for fisher exact p-values, i.e., features where there is apparent association between missingness and the biology of interest
 ## threshold - percentile of the p-value distribution. Features that have p-values below this percentile are retained.
 ## fish.pvals - pvalues from running 'diff.miss.fish'
@@ -53,10 +53,3 @@ filter.fish <- function(threshold,fish.pvals){
   names(fish.pvals[fish.pvals<quantile(fish.pvals,threshold)])
 }
 
-na.threshold <- 0.6
-
-pval.thresh <- 0.01
-
-keep.features <- c(filter.na(na.threshold,peakTable,obsNames1),filter.fish(pval.thresh,fish.pvals))
-
-peakTable <- peakTable[rownames(peakTable)%in%keep.features,]
