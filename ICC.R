@@ -20,8 +20,8 @@ calc.icc <- function(filled,biosamples,qcsamples){
 ## 'boxplot.icc' is a function that creates boxplots and boxplot statistics for high and low quality features that can be used to determine filtering thresholds
 
 boxplot.icc <- function(icc,high,low){
-  bp.high <- boxplot(icc[names(icc)%in%high])
-  bp.low <- boxplot(icc[names(icc)%in%low])
+  bp.high <- boxplot(icc[names(icc)%in%high],main="ICC, High quality")
+  bp.low <- boxplot(icc[names(icc)%in%low],main="ICC, Low quality")
   boxplot(icc[names(icc)%in%c(high,low)] ~ as.factor(names(icc[names(icc)%in%c(high,low)])%in%high),notch=T
           ,names=c('Low Quality','High Quality'),main='Box Plot of Intra-class Correlation Coefficient',
           cex.lab=1.4,cex.main=1.5,ylab='icc',cex.axis=1.4,varwidth=T)
@@ -29,6 +29,16 @@ boxplot.icc <- function(icc,high,low){
   
 }
 
+## 'density.icc' is a function that creates density plots of ICC values for high and low quality features
+
+density.icc <- function(icc,high,low){
+  plot(density(icc[names(icc)%in%high]*100),main='Density Plot of ICC Values',
+               cex.lab=1.4,cex.main=1.5,ylab='ICC',cex.axis=1.4,xlab='',col='red')
+  lines(density(icc[names(icc)%in%low]*100))
+  legend('topleft',col=c('red','black'),lwd=2,legend=c('High Quality','Low Quality'),cex=1.2)
+}
+
+## 'filter.icc' is a function that identifies which features pass the specified icc threshold.
 
 filter.icc <- function(icc,threshold){
   names(icc[icc<threshold])

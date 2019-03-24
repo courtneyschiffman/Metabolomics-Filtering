@@ -1,8 +1,8 @@
 
 ## This function creates a mean-difference plot as described in Schiffman et al. 
 ## Points in red correspond to high quality features
-## Point in black correspond to low quality features
-## filled - a filled dataframe (as from xcms) of logged feature abundances. The dataframe should have features in the rows and samples in the columns (including blank samples), with the names of features being the rownames of the matrix and the sample names being the column names of the matrix. 
+## Points in black correspond to low quality features
+## filled - a filled dataframe (i.e. resulting from the 'fillChromPeaks' function in xcms) of logged feature abundances. The dataframe should have features in the rows and samples in the columns (including blank samples), with the names of features being the rownames of the matrix and the sample names being the column names of the matrix. 
 ## blanks - chacater string of names corresponding to the blank samples in the fill dataframe.
 ## biosamples - chacater string of names corresponding to the biological samples in the fill dataframe.
 ## high - character string of feature names corresponding to the high quality features. 
