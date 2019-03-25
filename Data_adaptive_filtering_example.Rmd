@@ -1,15 +1,16 @@
 ---
 title: "Data-adaptive Filtering Example"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
 ---
 
-```{r setup, include=FALSE}
+```{r setup, echo=F}
 knitr::opts_chunk$set(echo = TRUE,message=F,warning=F,tidy = T,tidy.opts = list(width.cutoff=60),fig.show='hold')
 ```
 
-```{r libraries}
+```{r libraries, echo=FALSE}
 
 libs <- c('xcms','RColorBrewer','tidyverse','doParallel','foreach','parallel')
 for (l in libs){
@@ -19,7 +20,9 @@ for (l in libs){
 
 ```
 
-We demonstrate here how to carry out the filtering procedures described in "Filtering procedures for untargeted LC-MS metabolomics data" by Schiffman, et al. We use the CRC dataset mentioned in the manuscript for demonstration. To implement the functions within the pipeline, users need
+# Introduction
+
+We demonstrate here how to carry out the filtering procedures described in "Filtering procedures for untargeted LC-MS metabolomics data" by Schiffman, et al. We use the CRC dataset mentioned in the manuscript for demonstration. To implement the functions within the pipeline, users need...
 
 * a filled matrix (features by samples) of log feature abundances (i.e. after using the 'fillChromPeaks' function in xcms).
 
@@ -31,7 +34,7 @@ We demonstrate here how to carry out the filtering procedures described in "Filt
 
 We note that, unlike in the manuscript, we do not split features into a training and testing set for simplicity.
 
-### MD-plot filtering
+# MD-plot filtering
 
 The function 'MDplot' creates a mean-difference plot such as the ones described in Schiffman et al., highlighting the high and low quality features. **Because the positions of the high and low quality features within the MD-plot will vary for each dataset, we only provide a function for creating the MD-plot, and do not provide a function for performing the actual filtering in this step.** However, we demonstrate how the filtering is done for the CRC dataset. For the CRC dataset, all of the high quality features are in the cluster of features with the highest average abundances. We retain only features that are present in this cluster, and use the distribution of noise below the zero difference line to filter features above the zero difference line, as described in Schiffman et al.
 
@@ -39,11 +42,22 @@ The function 'MDplot' creates a mean-difference plot such as the ones described 
 
 ## Create the MD-plot using the 'MDplot' function
 
+# Load the functions
+
 source("MDplot.R")
+
+# Load the CRC data
 
 load('Data.RData')
 
 MDplot(filled,blankNames,obsNames,high,low)
+
+```
+
+After using the 'MDplot' function to visualize the positions of the high and low quality features, users can identify how they should filter their features according to average abundance and differences in abundance between blank and biological samples. For example, for the CRC dataset we see that all of the high quality features are detected in all 3 blank samples (which are also the features with the highest average abundances). We again use the MDplot function, but on the subset of data corresponding to features detected in all 3 blank samples.
+
+
+```{r }
 
 ## Demonstrate plotting of thresholds and filtering for CRC data
 
@@ -54,6 +68,17 @@ names(num.zero) <- rownames(filled)
 
 filled <- filled[num.zero==0,]
 unfilled <- unfilled[num.zero==0,]
+
+MDplot(filled,blankNames,obsNames,high,low)
+
+
+```
+
+
+We now demonstrate how to partition the remaining features along the x-axis based on quantiles (20th,40th,60th,80th) and to visualize and select appropriate filtering cutoffs within each partition (e.g. absolute value of the lower quartile of features below the zero difference line).
+
+```{r}
+
 
 obsMean <- as.vector(apply(filled[,obsNames], 1, mean))
 names(obsMean) <- rownames(filled)
@@ -118,7 +143,14 @@ segments(x0=breaks[4],y0=summary(less5)[2],x1=20,col="darkmagenta",lwd=2)
 segments(x0=breaks[4],y0=abs(summary(less5)[2]),x1=20,col="green3",lwd=2)
 
 
-# features that are retained
+```
+
+
+We filter features that are below the green lines in the MD-plot.
+
+```{r}
+
+# features that are above the green lines and are retained
 
 batch1.features <- c(bin1,bin2,bin3,bin4,bin5)
 
@@ -129,11 +161,10 @@ unfilled <- unfilled[rownames(unfilled)%in%batch1.features,]
 
 ```
 
-### Percent missing filtering
+# Percent missing filtering
 
-The functions 'boxplot.na' and 'density.na' allow users to visualize an appropriate cutoff for percent missing. The 'boxplot.na' function also provides users with the extreme of the lower whisker, the lower ‘hinge’, the median, the upper ‘hinge’ and the extreme of the upper whisker for each box plot to help with threshold selection. The 'diff.miss.fish' function calculates p-values for the Fisher exact test of the association between missing values and the binary phenotype of interest (CRC). If users have a multi-level categorical phenotype of interest, they can call the function 'diff.miss.chi' to get p-values using the Chi-square test. If users have a continuous phenotype of interest, they can call the function 'diff.miss.wilc' to get p-values using the Wilcoxon rank sum test.
+The functions 'boxplot.na' and 'density.na' allow users to visualize an appropriate cutoff for percent missing. The 'boxplot.na' function also provides users with the extreme of the lower whisker, the lower ‘hinge’, the median, the upper ‘hinge’ and the extreme of the upper whisker for each box plot to help with threshold selection.
 
-Users then can specify their desired percent missing cutoff, 'na.threshold', and the percentile of the p-value distribution to use as a cutoff. The functions 'filter.na' and 'filter.pvals' identify features that pass the missing and p-value thresholds, respectively, and the union of such features is taken.
 
 ```{r percent missing filtering}
 
@@ -145,9 +176,22 @@ boxplot.na(unfilled,c(obsNames,obsNames2),high,low)
 
 density.na(unfilled,c(obsNames,obsNames2),high,low)
 
+```
+
+When filtering by percent missing, however, we do not want to remove features that are differentially missing in the phenotype of interest. Because we have a binary biological factor of interest (CRC status) we use the 'diff.miss.fish' function to test for association between missing values and the biology of interest. The 'diff.miss.fish' function calculates p-values for the Fisher exact test of the association between missing values and the binary phenotype of interest (CRC). If users have a multi-level categorical phenotype of interest, they can call the function 'diff.miss.chi' to get p-values using the Chi-square test. If users have a continuous phenotype of interest, they can call the function 'diff.miss.wilc' to get p-values using the Wilcoxon rank sum test.
+
+```{r}
+
 # Calculate p-values
 
 fish.pvals <- diff.miss.fish(unfilled,obsNames,bio)
+
+```
+
+
+Users then can specify their desired percent missing cutoff, 'na.threshold', and the percentile of the p-value distribution to use as a cutoff. The functions 'filter.na' and 'filter.pvals' identify features that pass the missing and p-value thresholds, respectively, and the union of such features is taken.
+
+```{r}
 
 # Choose the missing threshold (0.67, the median of missing values for low quality features)
 
@@ -169,9 +213,9 @@ unfilled <- unfilled[rownames(unfilled)%in%keep.features,]
 
 ```
 
-### ICC filtering
+# ICC filtering
 
-Finally, the function 'calc.icc' calculates ICC values for each feature. As with percent missing, the functions 'boxplot.icc' and 'density.icc' allow users to visualize the distribution of ICC values for high and low quality features and to select a cutoff. The function 'filter.icc' identifies features that pass the ICC threshold.
+Finally, the function 'calc.icc' calculates ICC values for each feature. As with percent missing, the functions 'boxplot.icc' and 'density.icc' allow users to visualize the distribution of ICC values for high and low quality features and to select a cutoff.
 
 ```{r ICC filtering}
 
@@ -187,6 +231,13 @@ ICC <- calc.icc(filled,obsNames,qcNames)
 boxplot.icc(ICC,high,low)
 
 density.icc(ICC,high,low)
+
+```
+
+The function 'filter.icc' identifies features that pass a specified ICC threshold. We subset the data to just those features, giving a final filtered dataset.
+
+
+```{r}
 
 # Set the ICC threshold (0.72 lower whisker of high quality feature box plot)
 
