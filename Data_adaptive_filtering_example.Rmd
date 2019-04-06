@@ -1,5 +1,5 @@
 ---
-title: "Data-adaptive Filtering Example"
+title: "Untargeted LC-MS Metabolomics Filtering Example"
 output:
   pdf_document: default
   html_document:
@@ -22,21 +22,21 @@ for (l in libs){
 
 # Introduction
 
-We demonstrate here how to carry out the filtering procedures described in "Filtering procedures for untargeted LC-MS metabolomics data" by Schiffman, et al. We use the CRC dataset mentioned in the manuscript for demonstration. To implement the functions within the pipeline, users need...
+We demonstrate here how to carry out the filtering procedures described in "Filtering procedures for untargeted LC-MS metabolomics data" by Schiffman, et al. We use the CRC dataset mentioned in the manuscript for demonstration. To implement the functions within the filtering pipeline, users need...
 
 * a filled matrix (features by samples) of log feature abundances (i.e. after using the 'fillChromPeaks' function in xcms).
 
 * an unfilled matrix (features by samples) of log feature abundances (i.e. before using the 'fillChromPeaks' function in xcms).
 
-* names of QC, blank and biological samples.
+* names of pooled QC, blank and biological samples.
 
 * names of identified high and low quality features.
 
-We note that, unlike in the manuscript, we do not split features into a training and testing set for simplicity.
+For simplicity, unlike in the manuscript, we do not split features into a training and testing set.
 
 # MD-plot filtering
 
-The function 'MDplot' creates a mean-difference plot such as the ones described in Schiffman et al., highlighting the high and low quality features. **Because the positions of the high and low quality features within the MD-plot will vary for each dataset, we only provide a function for creating the MD-plot, and do not provide a function for performing the actual filtering in this step.** However, we demonstrate how the filtering is done for the CRC dataset. For the CRC dataset, all of the high quality features are in the cluster of features with the highest average abundances. We retain only features that are present in this cluster, and use the distribution of noise below the zero difference line to filter features above the zero difference line, as described in Schiffman et al.
+The function 'MDplot' creates a mean-difference plot such as the ones described in Schiffman et al., highlighting the high and low quality features within the plot. **Because the positions of the high and low quality features within the MD-plot, the number of blank samples, etc. will vary for each dataset, we only provide a function for creating the MD-plot. We do not provide a function for performing the actual filtering in this step.** However, we demonstrate how filtering based on MD-plots can be done using the CRC dataset. For the CRC dataset, all of the high quality features are in the cluster of features with the highest average abundances. We retain only features that are present in this cluster, and use the distribution of noise below the zero difference line to filter features above the zero difference line, as described in Schiffman et al.
 
 ```{r MD Filtering}
 
@@ -75,7 +75,7 @@ MDplot(filled,blankNames,obsNames,high,low)
 ```
 
 
-We now demonstrate how to partition the remaining features along the x-axis based on quantiles (20th,40th,60th,80th) and to visualize and select appropriate filtering cutoffs within each partition (e.g. absolute value of the lower quartile of features below the zero difference line).
+We now demonstrate how to partition the remaining features along the x-axis based on quantiles (20th,40th,60th,80th) and how to visualize and select appropriate filtering cutoffs within each partition (e.g. absolute value of the lower quartile of features below the zero difference line).
 
 ```{r}
 
@@ -189,7 +189,7 @@ fish.pvals <- diff.miss.fish(unfilled,obsNames,bio)
 ```
 
 
-Users then can specify their desired percent missing cutoff, 'na.threshold', and the percentile of the p-value distribution to use as a cutoff. The functions 'filter.na' and 'filter.pvals' identify features that pass the missing and p-value thresholds, respectively, and the union of such features is taken.
+Users then can specify their desired percent missing cutoff, 'na.threshold', and the percentile of the p-value distribution to use as a cutoff. The functions 'filter.na' and 'filter.pvals' identify features that pass the missing and p-value thresholds, respectively, and the union of such features is taken. Here we use the median of the missing values for the low quality features as a cutoff, and the hundredth percentile of the p-value distribution as a cutoff.
 
 ```{r}
 
@@ -234,7 +234,7 @@ density.icc(ICC,high,low)
 
 ```
 
-The function 'filter.icc' identifies features that pass a specified ICC threshold. We subset the data to just those features, giving a final filtered dataset.
+The function 'filter.icc' identifies features that pass a specified ICC threshold. We subset the data to just those features with ICC values above the lower whisker of the boxplot for high quality features, giving a final filtered dataset.
 
 
 ```{r}
